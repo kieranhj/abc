@@ -40,7 +40,7 @@ Convert font.png into 3 bitplans font of 32*24 pixels per letter.
 ## Command line options
 
 ````
-AmigAtari Bitmap Converter v2.02 by Leonard/Oxygene
+AmigAtariArchie Bitmap Converter v2.04 by Leonard/Oxygene
 (GPU Enhanced version)
 
 Usage:
@@ -77,6 +77,8 @@ Options:
 	-atari : use Atari bitplan format output
 	-ste : use Atari STE palette format (Atari default)
 	-stf : use Atari STF palette format (3bits per component)
+	-archie : use Archimedes chunky format output
+	-std256 : use Archimedes standard 256 color palette (default is search)
 	-sprw <w> : input image contains w pixels width tiles
 	-sprh <h> : input image contains h pixels high tiles
 	-sprc <n> : input image contains n tiles
@@ -89,6 +91,7 @@ Options:
 ## Credits
 
 - Written by [Arnaud Carré](https://twitter.com/leonard_coder) aka Leonard/Oxygene
+- Acorn Archimedes format support by kieran^Bitshifers
 - abc2 is using [libspng](https://github.com/randy408/libspng) and [miniz](https://github.com/richgel999/miniz) for PNG file reading & writing. 
 
 ## Links
