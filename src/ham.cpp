@@ -711,93 +711,97 @@ void	BruteForceHam::BestArchiePaletteSearch(Color444* bitmap, int w, int h, Amig
 	m_h = h;
 
 	m_original = bitmap;
-
-	clock_t t0 = clock();
 	const int colorCount = 16;			// Archie fixed to 16 VIDC palette registers.
 
-	// TODO: Search for 16 colour Archie palette in 256 colour mode.
-	//       Each palette entry contains 9 bits - 3 bits each of RGB.
-	//		 Search 16 x 512? Implement CPU version first!
-
-#if 0
-	Color444 defaultPalette[16];
-
-	// Set palette to default Archie 256 colour palette for now.
-	// Default MODE 13 palette - note that VIDC palette is specified 0x0BGR not RGB!
-	defaultPalette[0].SetRGB444(0x0000);
-	defaultPalette[1].SetRGB444(0x0111);
-	defaultPalette[2].SetRGB444(0x0222);
-	defaultPalette[3].SetRGB444(0x0333);
-	defaultPalette[4].SetRGB444(0x0400);	// 0x0004
-	defaultPalette[5].SetRGB444(0x0511);	// 0x0115
-	defaultPalette[6].SetRGB444(0x0622);	// 0x0226
-	defaultPalette[7].SetRGB444(0x0733);	// 0x0337
-	defaultPalette[8].SetRGB444(0x0004);	// 0x0400
-	defaultPalette[9].SetRGB444(0x0115);	// 0x0511
-	defaultPalette[10].SetRGB444(0x0226);	// 0x0622
-	defaultPalette[11].SetRGB444(0x0337);	// 0x0733
-	defaultPalette[12].SetRGB444(0x0404);
-	defaultPalette[13].SetRGB444(0x0515);
-	defaultPalette[14].SetRGB444(0x0626);
-	defaultPalette[15].SetRGB444(0x0737);
-
-	MakeArchie256Palette(defaultPalette, palette);
-#else
-
-	printf("  Brute force %d colors palette search, CPU, %d threads running...\n", colorCount, gThreadsCount);
-	for (int pi = 0; pi < colorCount; pi++)
+	if (params.std256)
 	{
-		int bestBruteColor = 0;
-		int palSize = pi + 1;
-		printf("Compute pal entry %d/%d...\n", pi + 1, colorCount);
+		Color444 defaultPalette[16];
 
-		if (pi > 0)	// do not search for background color ( supposed to be BLACK )
-		{
-			if (params.forceColors[pi] < 0)
-			{
-				// create and start all threads
-				SplitRanges(states, gThreadsCount, 512);	// 3 bits each of RGB
-				for (int i = 0; i < gThreadsCount; i++)
-				{
-					memcpy(states[i].pal, palette, colorCount * sizeof(Color444));
-					states[i].palSize = palSize;
-					states[i].solver = this;
-					states[i].currentPalIndex = pi;
-					hThreads[i] = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadMainArchiePal, states + i, 0, NULL);
-				}
+		// Set palette to default Archie 256 colour palette.
+		// Note that VIDC palette register values are specified 0x0BGR not RGB!
+		defaultPalette[0].SetRGB444(0x0000);
+		defaultPalette[1].SetRGB444(0x0111);
+		defaultPalette[2].SetRGB444(0x0222);
+		defaultPalette[3].SetRGB444(0x0333);
+		defaultPalette[4].SetRGB444(0x0400);	// 0x0004 (BGR)
+		defaultPalette[5].SetRGB444(0x0511);	// 0x0115 (BGR)
+		defaultPalette[6].SetRGB444(0x0622);	// 0x0226 (BGR)
+		defaultPalette[7].SetRGB444(0x0733);	// 0x0337 (BGR)
+		defaultPalette[8].SetRGB444(0x0004);	// 0x0400 (BGR)
+		defaultPalette[9].SetRGB444(0x0115);	// 0x0511 (BGR)
+		defaultPalette[10].SetRGB444(0x0226);	// 0x0622 (BGR)
+		defaultPalette[11].SetRGB444(0x0337);	// 0x0733 (BGR)
+		defaultPalette[12].SetRGB444(0x0404);
+		defaultPalette[13].SetRGB444(0x0515);
+		defaultPalette[14].SetRGB444(0x0626);
+		defaultPalette[15].SetRGB444(0x0737);
 
-				// wait for all threads to finish
-				WaitForMultipleObjects(gThreadsCount, hThreads, TRUE, INFINITE);
+		MakeArchie256Palette(defaultPalette, palette);
 
-				// now get the best result
-				ColorError_t best = kColorErrorMax;
-				for (int r = 0; r < gThreadsCount; r++)
-				{
-					if (states[r].bestError < best)
-					{
-						bestBruteColor = states[r].bestBruteColor;
-						best = states[r].bestError;
-					}
-					CloseHandle(hThreads[r]);
-				}
-			}
-			else
-			{
-				bestBruteColor = params.forceColors[pi];
-			}
-			// set the best color in the palette
-			palette[pi].SetR4(bestBruteColor & 0x7);
-			palette[pi].SetG4((bestBruteColor >> 3) & 0x7);
-			palette[pi].SetB4((bestBruteColor >> 6) & 0x7);
-		}
+		printf("Using Archie default 256 color palette\n");
 	}
+	else
+	{
+		clock_t t0 = clock();
 
-#endif
+		// Search for 16 colour Archie palette in 256 colour mode.
+		// Each palette entry contains 9 bits - 3 bits each of RGB.
+		// The remaining bits come from the logical field.
+		// Yes, it is rubbish. :(  -- kieran^Bitshifters.
 
-	t0 = clock() - t0;
-	int ms = (t0 * 1000) / CLOCKS_PER_SEC;
-	int sec = ms / 1000;
-	printf("Archie palette brute force Searching time: %dm%02ds%03dms\n", sec / 60, sec % 60, ms % 1000);
+		printf("  Brute force %d colors palette search, CPU, %d threads running...\n", colorCount, gThreadsCount);
+		for (int pi = 0; pi < colorCount; pi++)
+		{
+			int bestBruteColor = 0;
+			int palSize = pi + 1;
+			printf("Compute pal entry %d/%d...\n", pi + 1, colorCount);
+
+			if (pi > 0)	// do not search for background color ( supposed to be BLACK )
+			{
+				if (params.forceColors[pi] < 0)
+				{
+					// create and start all threads
+					SplitRanges(states, gThreadsCount, 512);	// 3 bits each of RGB
+					for (int i = 0; i < gThreadsCount; i++)
+					{
+						memcpy(states[i].pal, palette, colorCount * sizeof(Color444));
+						states[i].palSize = palSize;
+						states[i].solver = this;
+						states[i].currentPalIndex = pi;
+						hThreads[i] = (void*)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadMainArchiePal, states + i, 0, NULL);
+					}
+
+					// wait for all threads to finish
+					WaitForMultipleObjects(gThreadsCount, hThreads, TRUE, INFINITE);
+
+					// now get the best result
+					ColorError_t best = kColorErrorMax;
+					for (int r = 0; r < gThreadsCount; r++)
+					{
+						if (states[r].bestError < best)
+						{
+							bestBruteColor = states[r].bestBruteColor;
+							best = states[r].bestError;
+						}
+						CloseHandle(hThreads[r]);
+					}
+				}
+				else
+				{
+					bestBruteColor = params.forceColors[pi];
+				}
+				// set the best color in the palette
+				palette[pi].SetR4(bestBruteColor & 0x7);
+				palette[pi].SetG4((bestBruteColor >> 3) & 0x7);
+				palette[pi].SetB4((bestBruteColor >> 6) & 0x7);
+			}
+		}
+
+		t0 = clock() - t0;
+		int ms = (t0 * 1000) / CLOCKS_PER_SEC;
+		int sec = ms / 1000;
+		printf("Archie palette brute force Searching time: %dm%02ds%03dms\n", sec / 60, sec % 60, ms % 1000);
+	}
 
 	out.m_bpc = params.bitplanCount;		// 
 	out.m_w = m_w;

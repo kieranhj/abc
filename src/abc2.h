@@ -39,6 +39,7 @@ struct ConvertParams
 	bool		atari;
 	bool		ste;				// ste palette color format
 	bool		archie;				// Archimedes
+	bool		std256;				// archimedes standard 256 palette.
 
 	int cropX;
 	int cropY;

@@ -22,6 +22,8 @@ ConvertParams::ConvertParams()
 	// amiga or STE by default
 	atari = false;
 	ste = false;
+	archie = false;
+	std256 = false;
 	bitplanCount = -1;
 	gpu = true;
 
@@ -436,10 +438,11 @@ void	Help()
 			"\t-swap <id0> <id1>: swap color index id0 with color index id1\n"
 			"\t-chunky : store bitmap file in chunky mode (4bits per pixel)\n"
 			"\t-amiga : use Amiga bitplan format output (default)\n"
-			"\t-archie : use Archimedes chunky format output\n"
 			"\t-atari : use Atari bitplan format output\n"
 			"\t-ste : use Atari STE palette format (Atari default)\n"
 			"\t-stf : use Atari STF palette format (3bits per component)\n"
+			"\t-archie : use Archimedes chunky format output\n"
+			"\t-std256 : use Archimedes standard 256 color palette (default is search)\n"
 			"\t-sprw <w> : input image contains w pixels width tiles\n"
 			"\t-sprh <h> : input image contains h pixels high tiles\n"
 			"\t-sprc <n> : input image contains n tiles\n"
@@ -646,6 +649,10 @@ bool	ParseArgs(int argc, char* argv[], ConvertParams& params)
 			{
 				params.atari = false;
 				params.archie = true;
+			}
+			else if (0 == strcmp("-std256", argv[argId]))
+			{
+				params.std256 = true;
 			}
 			else
 			{
