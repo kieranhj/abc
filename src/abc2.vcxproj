@@ -191,6 +191,7 @@
     <ClInclude Include="extern\miniz\miniz.h" />
     <ClInclude Include="ham.h" />
     <ClInclude Include="pngFile.h" />
+    <ClInclude Include="shaders\ArchiePalCompute.h" />
     <ClInclude Include="shaders\HamCompute.h" />
     <ClInclude Include="shaders\MppCompute.h" />
     <ClInclude Include="shaders\ShamCompute.h" />
@@ -198,6 +199,20 @@
     <ClInclude Include="tileset.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="shaders\ArchiePalCompute.hlsl">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ArchiePalKernel</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)shaders\%(Filename).h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ArchiePalKernel</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)shaders\%(Filename).h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
+    </FxCompile>
     <FxCompile Include="shaders\HamCompute.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">HamKernel</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>

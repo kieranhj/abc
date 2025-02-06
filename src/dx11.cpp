@@ -16,6 +16,7 @@
 #include "shaders/ShamCompute.h"
 #include "shaders/MppCompute.h"
 #include "shaders/SinglePalCompute.h"
+#include "shaders/ArchiePalCompute.h"
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi")
@@ -251,7 +252,8 @@ bool	Dx11Manager::CreateDevice()
 			HRESULT hr1 = m_pd3dDevice->CreateComputeShader((void*)&g_HamKernel, sizeof(g_HamKernel), NULL, &m_pHamKernel);
 			HRESULT hr2 = m_pd3dDevice->CreateComputeShader((void*)&g_MppKernel, sizeof(g_MppKernel), NULL, &m_pMppKernel);
 			HRESULT hr3 = m_pd3dDevice->CreateComputeShader((void*)&g_SinglePalKernel, sizeof(g_SinglePalKernel), NULL, &m_pSinglePalKernel);
-			if ((S_OK == hr0) && (S_OK == hr1) && (S_OK == hr2) && (S_OK == hr3))
+			HRESULT hr4 = m_pd3dDevice->CreateComputeShader((void*)&g_ArchiePalKernel, sizeof(g_ArchiePalKernel), NULL, &m_pArchiePalKernel);
+			if ((S_OK == hr0) && (S_OK == hr1) && (S_OK == hr2) && (S_OK == hr3) && (S_OK == hr4))
 			{
 				bRet = true;
 			}
@@ -420,6 +422,90 @@ bool	Dx11Manager::bestSinglePaletteSearch(const Color444* image, int w, int h, C
 }
 
 
+bool	Dx11Manager::bestArchiePaletteSearch(const Color444* image, int w, int h, Color444* outPalettes)
+{
+	bool bRet = false;
+
+	if (CreateDevice())
+	{
+		assert(4 == sizeof(Color444));		// if fail, some change should be done in the compute shader code! :)
+		const int colorCount = 16;
+		int palSize = colorCount * sizeof(Color444);
+
+		const int imageSize = w * h * sizeof(Color444);
+		Dx11Buffer imageBuffer;
+		if (imageBuffer.CreateSRVBuffer(m_pd3dDevice, imageSize, image))
+		{
+			int4 processInfo[1 + 16];
+			Dx11Buffer constantBuffer;
+			if (constantBuffer.CreateConstantBuffer(m_pd3dDevice, sizeof(processInfo), NULL))
+			{
+				Dx11Buffer outErrorBuffer;
+				outErrorBuffer.CreateUAVBuffer(m_pd3dDevice, 512 * 4, NULL);
+				// Each palette entry will brute-force search among 512 colors
+				for (int palEntry = 1; palEntry < colorCount; palEntry++)
+				{
+					processInfo[0].x = w;
+					processInfo[0].y = h;
+					processInfo[0].z = palEntry;
+					processInfo[0].w = 0;
+					for (int c = 0; c < colorCount; c++)
+						processInfo[1 + c].x = outPalettes[c].GetRGB444();
+
+					m_pImmediateContext->CSSetShader(m_pArchiePalKernel, NULL, 0);
+
+					if (constantBuffer.UpdateData(m_pImmediateContext, processInfo, sizeof(processInfo)))
+					{
+						outErrorBuffer.Bind(m_pImmediateContext, 0);
+						imageBuffer.Bind(m_pImmediateContext, 0);
+						constantBuffer.Bind(m_pImmediateContext, 0);
+						outErrorBuffer.Clear(m_pImmediateContext);
+
+						// GPU start command (run compute shader kernel)
+						m_pImmediateContext->Dispatch(h, 512 / 64, 1);		// 9-bits of palette = 512 choices
+					}
+
+					// For single palette mode, CPU have to retreive the minimal error among the 4096 results,
+					// and set it as color in the current palette entry
+					u32 errors[512];	// 16KiB on stack is perfectly fine for today standard :)
+					if (outErrorBuffer.ReadData(m_pImmediateContext, errors, sizeof(errors)))
+					{
+						u32 bestError = ~0;
+						int bestColor;
+						for (int i = 0; i < 512; i++)
+						{
+							if (errors[i] < bestError)
+							{
+								bestError = errors[i];
+								bestColor = i;
+							}
+						}
+						outPalettes[palEntry].SetR4(bestColor & 0x7);
+						outPalettes[palEntry].SetG4((bestColor >> 3) & 0x7);
+						outPalettes[palEntry].SetB4((bestColor >> 6) & 0x7);
+					}
+					else
+					{
+						printf("ERROR: GPU can't read back error data in Archie kernel\n");
+					}
+				}
+			}
+			else
+			{
+				printf("ERROR: Unable to create 16bytes constant buffer\n");
+			}
+		}
+	}
+
+	if (m_pd3dDevice)
+	{
+		m_pd3dDevice->Release();
+		m_pd3dDevice = NULL;
+	}
+	return bRet;
+}
+
+
 bool	Dx11Manager::bestHAMPaletteCompute(const Color444* image, int w, int h, Color444* outPalettes)
 {
 	return bestSinglePaletteSearch(image, w, h, outPalettes, 4, true);
@@ -429,6 +515,12 @@ bool Dx11Manager::bestSinglePaletteCompute(const Color444* image, int w, int h, 
 {
 	assert(bpc <= 5);
 	return bestSinglePaletteSearch(image, w, h, outPalettes, bpc, false);
+}
+
+bool Dx11Manager::bestArchiePaletteCompute(const Color444* image, int w, int h, Color444* outPalettes, int bpc)
+{
+	assert(bpc == 8);
+	return bestArchiePaletteSearch(image, w, h, outPalettes);
 }
 
 bool	Dx11Manager::bestSHAMPaletteCompute(const Color444* image, int w, int h, Color444* outPalettes)

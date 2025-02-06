@@ -95,6 +95,9 @@
     <ClInclude Include="tileset.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\ArchiePalCompute.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders\HamCompute.hlsl">
@@ -107,6 +110,9 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaders\SinglePalCompute.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="shaders\ArchiePalCompute.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>

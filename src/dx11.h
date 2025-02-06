@@ -51,10 +51,12 @@ public:
 	bool	bestMppPaletteCompute(const Color444* image, int w, int h, Color444* outPalettes, int bpc);
 	bool	bestHAMPaletteCompute(const Color444* image, int w, int h, Color444* outPalettes);
 	bool	bestSinglePaletteCompute(const Color444* image, int w, int h, Color444* outPalettes, int bpc);
+	bool	bestArchiePaletteCompute(const Color444* image, int w, int h, Color444* outPalettes, int bpc);
 
 private:
 	bool bestMultiPaletteSearch(const Color444* image, int w, int h, Color444* outPalettes, int bpc, bool ham);
 	bool bestSinglePaletteSearch(const Color444* image, int w, int h, Color444* outPalettes, int bpc, bool ham);
+	bool bestArchiePaletteSearch(const Color444* image, int w, int h, Color444* outPalettes);
 
 	bool			CreateDevice();
 
@@ -65,4 +67,5 @@ private:
 	ID3D11ComputeShader*		m_pShamKernel;
 	ID3D11ComputeShader*		m_pMppKernel;
 	ID3D11ComputeShader*		m_pSinglePalKernel;
+	ID3D11ComputeShader*		m_pArchiePalKernel;
 };
