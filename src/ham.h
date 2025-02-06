@@ -22,6 +22,7 @@ public:
 	void	BestSHAMPaletteSearch(Color444* bitmap, int w, int h, Color444* palette, const ConvertParams& params);
 	void	BestMultiPaletteSearch(Color444* bitmap, int w, int h, AmigAtariBitmap& out, Color444* palette, const ConvertParams& params);
 	void	BestPaletteSearch(Color444* bitmap, int w, int h, AmigAtariBitmap& out, Color444* palette, const ConvertParams& params);
+	void	BestArchiePaletteSearch(Color444* bitmap, int w, int h, AmigAtariBitmap& out, Color444* palette, const ConvertParams& params);
 	void	HamDebugSave(const Color444* palette, int colorCount, const char* pngFilename);
 	void	HamStore(AmigAtariBitmap& out, const Color444* palette, bool multiPalette);
 
@@ -67,4 +68,4 @@ private:
 
 void	SaveRGBPcPreview(const Color444* img, int w, int h, const char* sFilename);
 void	SaveSHAM5bPcPreview(const Color444* imgA, int w, int h, const char* sFilename);
-
+void	MakeArchie256Palette(const Color444* basePalette, Color444* palette256);

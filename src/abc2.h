@@ -38,6 +38,7 @@ struct ConvertParams
 	int			bitsPerComponent;
 	bool		atari;
 	bool		ste;				// ste palette color format
+	bool		archie;				// Archimedes
 
 	int cropX;
 	int cropY;

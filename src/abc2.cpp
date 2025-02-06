@@ -265,6 +265,14 @@ bool	ConvertParams::Validate(pngFile& bitmap)
 				ret = false;
 			}
 		}
+		else if (archie)
+		{
+			if (!((bitplanCount == 1) || (bitplanCount == 2) || (bitplanCount == 4) || (bitplanCount == 8)))
+			{
+				printf("ERROR: Archie only supports bitplan count 1,2,4 or 8 (-bpc)\n");
+				ret = false;
+			}
+		}
 		else
 		{
 			if (bitplanCount > 5)
@@ -428,6 +436,7 @@ void	Help()
 			"\t-swap <id0> <id1>: swap color index id0 with color index id1\n"
 			"\t-chunky : store bitmap file in chunky mode (4bits per pixel)\n"
 			"\t-amiga : use Amiga bitplan format output (default)\n"
+			"\t-archie : use Archimedes chunky format output\n"
 			"\t-atari : use Atari bitplan format output\n"
 			"\t-ste : use Atari STE palette format (Atari default)\n"
 			"\t-stf : use Atari STF palette format (3bits per component)\n"
@@ -626,10 +635,17 @@ bool	ParseArgs(int argc, char* argv[], ConvertParams& params)
 			else if (0 == strcmp("-amiga", argv[argId]))
 			{
 				params.atari = false;
+				params.archie = false;
 			}
 			else if (0 == strcmp("-atari", argv[argId]))
 			{
 				params.atari = true;
+				params.archie = false;
+			}
+			else if (0 == strcmp("-archie", argv[argId]))
+			{
+				params.atari = false;
+				params.archie = true;
 			}
 			else
 			{
@@ -839,13 +855,47 @@ static void outputBitplanAtariLine(int bitplanCount, const u8* pixels, int w, FI
 	}
 }
 
+static void outputBitplanArchieLine(int bitplanCount, const u8* pixels, int w, FILE* hf)
+{
+	assert(0 == (w & 7));
+	int ppb = 8 / bitplanCount;
+	for (int x = 0; x < w; x += ppb)
+	{
+		u8 val;
+		switch (bitplanCount)
+		{
+		case 1:
+			val = (pixels[7] << 7) | (pixels[6] << 6) | (pixels[5] << 5) | (pixels[4] << 4) | (pixels[3] << 3) | (pixels[2] << 2) | (pixels[1] << 1) | (pixels[0]);
+			break;
+		case 2:
+			val = (pixels[3] << 6) | (pixels[2] << 4) | (pixels[1] << 2) | (pixels[0]);
+			break;
+		case 4:
+			val = (pixels[1] << 4) | (pixels[0]);
+			break;
+		case 8:
+			val = pixels[0];
+			break;
+		}
+		fputc(val, hf);
+		pixels += ppb;
+	}
+}
+
 bool	AmigAtariBitmap::SaveBitplans(const ConvertParams& params, const char* sFilename)
 {
 	assert(m_pixels);
 
-	printf("Saving %s %s binary file \"%s\"...\n", params.atari ? "Atari" : "Amiga", 
-		params.chunky?"chunky":"bitplan",
-		sFilename);
+	if (params.archie)
+	{
+		printf("Saving Archie chunky binary file \"%s\"...\n", sFilename);
+	}
+	else
+	{
+		printf("Saving %s %s binary file \"%s\"...\n", params.atari ? "Atari" : "Amiga",
+			params.chunky ? "chunky" : "bitplan",
+			sFilename);
+	}
 	bool ret = false;
 	FILE* hf;
 	if (0 == fopen_s(&hf, sFilename, "wb"))
@@ -889,6 +939,14 @@ bool	AmigAtariBitmap::SaveBitplans(const ConvertParams& params, const char* sFil
 						{
 							const u8* pixels = m_pixels + (yb * params.sprH + y)*m_w + xb * params.sprW;
 							outputBitplanAtariLine(m_bpc, pixels, params.sprW, hf);
+						}
+					}
+					else if (params.archie)
+					{
+						for (int y = 0; y < params.sprH; y++)
+						{
+							const u8* pixels = m_pixels + (yb * params.sprH + y) * m_w + xb * params.sprW;
+							outputBitplanArchieLine(m_bpc, pixels, params.sprW, hf);
 						}
 					}
 					else
@@ -1032,10 +1090,11 @@ bool	AmigAtariBitmap::SavePalettes(const ConvertParams& params, const char* sFil
 	printf("Saving %s palette binary file \"%s\"...\n", params.atari ? "Atari" : "Amiga", sFilename);
 
 	bool ret = false;
+	bool archie256 = params.archie && params.bitplanCount == 8;
 	FILE* hf;
 	if (0 == fopen_s(&hf, sFilename, "wb"))
 	{
-		const int colorCount = m_ham?16:(1 << m_bpc);
+		const int colorCount = (m_ham||archie256)?16:(1 << m_bpc);
 		const int palCount = m_multiPalette ? m_h : 1;
 		printf("  %d palette(s) of %d colors each...\n", palCount, colorCount);
 		const Color444* pal = m_palettes;
@@ -1219,12 +1278,27 @@ bool	MultiPaletteOptimize(u8* bitmap, int w, int h, Color444* palettes, int bitp
 
 bool	AmigAtariBitmap::SavePcPreview(const ConvertParams& params, const char* sFilename)
 {
-
+	bool archie256 = params.archie && params.bitplanCount == 8;
 	pngPixel* tmpImage = (pngPixel*)malloc(m_w*m_h * sizeof(pngPixel));
 	pngPixel* pw = tmpImage;
 
 	const u8* pixels = m_pixels;
-	if (!m_ham)
+	if (archie256)
+	{
+		Color444* archiePalette = (Color444*)malloc(256 * sizeof(Color444));
+
+		MakeArchie256Palette(m_palettes, archiePalette);
+
+		for (int y = 0; y < m_h; y++)
+		{
+			for (int x = 0; x < m_w; x++)
+			{
+				pngPixel color = archiePalette[*pixels++].ToPngPixel();
+				*pw++ = color;
+			}
+		}
+	}
+	else if (!m_ham)
 	{
 		const int colorCount = 1 << m_bpc;
 		const int palCount = m_multiPalette ? m_h : 1;
@@ -1360,7 +1434,8 @@ int main(int argc, char*argv[])
 			AmigAtariBitmap out;
 			if (!params.rgb)
 			{
-				int colorPerPal = params.AnyHam() ? 16 : (1 << params.bitplanCount);
+				bool archie256 = params.archie && params.bitplanCount == 8;
+				int colorPerPal = (params.AnyHam()||archie256) ? 16 : (1 << params.bitplanCount);
 				int palEntries = params.ham ? colorPerPal : colorPerPal * h;
 				Color444* pal = (Color444*)malloc(palEntries * sizeof(Color444));
 
@@ -1423,7 +1498,13 @@ int main(int argc, char*argv[])
 				}
 				else if ( params.bitplanCount > 0 )
 				{
-					if (params.allowQuantize)
+					if (archie256)
+					{
+						assert(src444);
+						BruteForceHam bf;
+						bf.BestArchiePaletteSearch(src444, w, h, out, pal, params);
+					}
+					else if (params.allowQuantize)
 					{
 						assert(src444);
 						BruteForceHam bf;
